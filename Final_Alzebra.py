@@ -1,99 +1,123 @@
-﻿import tkinter as tk
-from tkinter import messagebox
+# -*- coding: utf-8 -*-
+import os
 import random
+import tkinter as tk
+from tkinter import messagebox
+
+from owlready2 import get_ontology
 
 
 class AlgebraPracticeITS:
     def __init__(self, root):
         self.root = root
-        self.root.title("Algebra Practice ITS - Linear Equations Tutor")
+        self.root.title("Algebra Practice ITS - Linear Equations Tutor (Adaptive + Ontology)")
         self.root.geometry("900x520")
-        self.root.configure(bg="#1E1E2E")  # dark background so it looks modern
+        self.root.configure(bg="#1E1E2E")
 
-        # State
+        # -------------------- State --------------------
+        self.current_eq_str = None
         self.current_x = None
         self.current_steps = []
         self.hint_index = 0
+
         self.correct = 0
         self.total = 0
 
-        # ---------- TOP HEADER ----------
+        # For semantic matching
+        self.current_a = None
+        self.current_b = None
+        self.current_c = None
+        self.current_rhs_after = None
+
+        # Adaptive difficulty
+        self.level = 1
+        self.streak_correct = 0
+        self.streak_wrong = 0
+
+        # Ontology
+        self.onto = None
+        self.current_onto_equation = None
+
+        # ✅ IMPORTANT: your file is named Done.rdf (as per your screenshot)
+        self.rdf_path = os.path.join(os.path.dirname(__file__), "Done.rdf")
+
+        # -------------------- UI --------------------
         header = tk.Frame(root, bg="#282A36", height=70)
         header.pack(side=tk.TOP, fill=tk.X)
 
-        title = tk.Label(
+        tk.Label(
             header,
             text="Algebra Practice Intelligent Tutoring System",
             font=("Segoe UI", 16, "bold"),
             fg="#FFFFFF",
             bg="#282A36"
-        )
-        title.pack(pady=5)
+        ).pack(pady=5)
 
-        subtitle = tk.Label(
+        tk.Label(
             header,
-            text="Solving equations of the form  ax + b = c",
+            text="Solving equations of the form  ax + b = c  (Adaptive + Ontology Hints)",
             font=("Segoe UI", 11),
             fg="#CFCFEA",
             bg="#282A36"
-        )
-        subtitle.pack()
+        ).pack()
 
-        # ---------- MAIN AREA (LEFT + RIGHT) ----------
         main_area = tk.Frame(root, bg="#1E1E2E")
         main_area.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # ----- LEFT PANEL: question, input, buttons, score -----
+        # LEFT PANEL
         left_panel = tk.Frame(main_area, bg="#232634", bd=2, relief="ridge")
         left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
 
-        # Equation display
-        self.eq_var = tk.StringVar()
-        eq_title = tk.Label(
-            left_panel,
-            text="Current Equation",
+        tk.Label(
+            left_panel, text="Current Equation",
             font=("Segoe UI", 12, "bold"),
             fg="#F8F8F2",
             bg="#232634"
-        )
-        eq_title.pack(pady=(10, 2))
+        ).pack(pady=(10, 2))
 
-        eq_label = tk.Label(
+        self.eq_var = tk.StringVar(value="(press New Question)")
+        tk.Label(
             left_panel,
             textvariable=self.eq_var,
             font=("Segoe UI", 12),
             fg="#BD93F9",
             bg="#232634"
-        )
-        eq_label.pack(pady=(0, 10))
+        ).pack(pady=(0, 10))
+
+        self.level_var = tk.StringVar(value="Difficulty: Easy (Level 1)")
+        tk.Label(
+            left_panel,
+            textvariable=self.level_var,
+            font=("Segoe UI", 10, "bold"),
+            fg="#50FA7B",
+            bg="#232634"
+        ).pack(pady=(0, 10))
 
         # Answer input
         answer_box = tk.Frame(left_panel, bg="#232634")
         answer_box.pack(pady=5)
 
-        ans_label = tk.Label(
+        tk.Label(
             answer_box,
             text="Your answer for  x  =",
             font=("Segoe UI", 11),
             fg="#F8F8F2",
             bg="#232634"
-        )
-        ans_label.pack(side=tk.LEFT)
+        ).pack(side=tk.LEFT)
 
         self.answer_var = tk.StringVar()
-        ans_entry = tk.Entry(
+        tk.Entry(
             answer_box,
             textvariable=self.answer_var,
-            width=8,
+            width=10,
             font=("Segoe UI", 12)
-        )
-        ans_entry.pack(side=tk.LEFT, padx=5)
+        ).pack(side=tk.LEFT, padx=5)
 
-        # Buttons row 1
+        # Buttons
         btn_row1 = tk.Frame(left_panel, bg="#232634")
         btn_row1.pack(pady=(15, 5))
 
-        new_btn = tk.Button(
+        tk.Button(
             btn_row1,
             text="New Question",
             command=self.new_question,
@@ -101,10 +125,9 @@ class AlgebraPracticeITS:
             bg="#50FA7B",
             fg="#000000",
             width=14
-        )
-        new_btn.grid(row=0, column=0, padx=4, pady=2)
+        ).grid(row=0, column=0, padx=4, pady=2)
 
-        check_btn = tk.Button(
+        tk.Button(
             btn_row1,
             text="Check Answer",
             command=self.check_answer,
@@ -112,14 +135,12 @@ class AlgebraPracticeITS:
             bg="#6272A4",
             fg="#FFFFFF",
             width=14
-        )
-        check_btn.grid(row=0, column=1, padx=4, pady=2)
+        ).grid(row=0, column=1, padx=4, pady=2)
 
-        # Buttons row 2
         btn_row2 = tk.Frame(left_panel, bg="#232634")
         btn_row2.pack(pady=(5, 10))
 
-        hint_btn = tk.Button(
+        tk.Button(
             btn_row2,
             text="Hint",
             command=self.show_hint,
@@ -127,10 +148,9 @@ class AlgebraPracticeITS:
             bg="#FFB86C",
             fg="#000000",
             width=14
-        )
-        hint_btn.grid(row=0, column=0, padx=4, pady=2)
+        ).grid(row=0, column=0, padx=4, pady=2)
 
-        solution_btn = tk.Button(
+        tk.Button(
             btn_row2,
             text="Show Full Solution",
             command=self.show_full_solution,
@@ -138,42 +158,37 @@ class AlgebraPracticeITS:
             bg="#BD93F9",
             fg="#000000",
             width=14
-        )
-        solution_btn.grid(row=0, column=1, padx=4, pady=2)
+        ).grid(row=0, column=1, padx=4, pady=2)
 
-        # Score display
         self.score_var = tk.StringVar(value="Score: 0 / 0")
-        score_label = tk.Label(
+        tk.Label(
             left_panel,
             textvariable=self.score_var,
             font=("Segoe UI", 11, "bold"),
             fg="#8BE9FD",
             bg="#232634"
-        )
-        score_label.pack(pady=(10, 5))
+        ).pack(pady=(10, 5))
 
-        tip_label = tk.Label(
+        tk.Label(
             left_panel,
-            text="Try to solve first.\nUse hints only when stuck.",
+            text="Adaptive rules:\n- 3 correct in a row -> harder\n- 2 wrong in a row -> easier",
             font=("Segoe UI", 9),
             fg="#F8F8F2",
             bg="#232634",
             justify="center"
-        )
-        tip_label.pack(pady=(0, 15))
+        ).pack(pady=(0, 15))
 
-        # ---------- RIGHT PANEL: explanation ----------
+        # RIGHT PANEL
         right_panel = tk.Frame(main_area, bg="#232634", bd=2, relief="ridge")
         right_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        explain_title = tk.Label(
+        tk.Label(
             right_panel,
             text="Tutor Feedback & Hints",
             font=("Segoe UI", 12, "bold"),
             fg="#F8F8F2",
             bg="#232634"
-        )
-        explain_title.pack(pady=(10, 2))
+        ).pack(pady=(10, 2))
 
         self.explain_box = tk.Text(
             right_panel,
@@ -188,35 +203,159 @@ class AlgebraPracticeITS:
         )
         self.explain_box.pack(padx=10, pady=8, fill=tk.BOTH, expand=True)
 
-        # ---------- BOTTOM BAR WITH YOUR NAME ----------
         bottom_bar = tk.Frame(root, bg="#1E1E2E")
         bottom_bar.pack(side=tk.BOTTOM, fill=tk.X, pady=(0, 5))
 
-        credit_button = tk.Button(
+        tk.Button(
             bottom_bar,
-            text="Made by Roshish",
+            text="AI Assignment",
             font=("Segoe UI", 10, "bold"),
             bg="#44475A",
             fg="#F8F8F2",
             relief="groove",
             command=self.show_credit
-        )
-        credit_button.pack(pady=2)
+        ).pack(pady=2)
 
-        # Start with one question
+        # -------------------- Load ontology and start --------------------
+        self.load_ontology()
         self.new_question()
 
-    # ------------ Core tutoring logic ------------
+    # ==================== Output helper ====================
+    def tutor_say(self, text: str):
+        self.explain_box.config(state="normal")
+        self.explain_box.insert(tk.END, text + "\n")
+        self.explain_box.config(state="disabled")
+        self.explain_box.see(tk.END)
+
+    def _update_level_label(self):
+        label = "Easy" if self.level == 1 else "Medium" if self.level == 2 else "Hard"
+        self.level_var.set(f"Difficulty: {label} (Level {self.level})")
+
+    # ==================== Ontology ====================
+    def load_ontology(self):
+        if not os.path.exists(self.rdf_path):
+            self.onto = None
+            self.tutor_say(f"Ontology file not found: {self.rdf_path}")
+            self.tutor_say("Put Done.rdf in the SAME folder as this .py file.")
+            return
+        try:
+            self.onto = get_ontology(self.rdf_path).load()
+            self.tutor_say(f"Ontology loaded successfully ✅ ({self.rdf_path})")
+        except Exception as e:
+            self.onto = None
+            self.tutor_say(f"Could not load ontology. Error: {e}")
+
+    def find_equation_in_ontology(self, a, b, c):
+        if not self.onto:
+            return None
+
+        try:
+            eq_instances = self.onto.Equation.instances()
+        except Exception:
+            eq_instances = list(self.onto.individuals())
+
+        for eq in eq_instances:
+            try:
+                if not (hasattr(eq, "hasA") and hasattr(eq, "hasB") and hasattr(eq, "hasC")):
+                    continue
+                if not (eq.hasA and eq.hasB and eq.hasC):
+                    continue
+                if int(eq.hasA[0]) == int(a) and int(eq.hasB[0]) == int(b) and int(eq.hasC[0]) == int(c):
+                    return eq
+            except Exception:
+                continue
+        return None
+
+    def get_step_texts_from_ontology_equation(self, eq_individual):
+        if eq_individual is None:
+            return None
+        if not hasattr(eq_individual, "hasSolution") or not eq_individual.hasSolution:
+            return None
+        sol = eq_individual.hasSolution[0]
+        if not hasattr(sol, "hasStep") or not sol.hasStep:
+            return None
+
+        texts = []
+        for s in sol.hasStep:
+            if hasattr(s, "stepText") and s.stepText:
+                texts.append(str(s.stepText[0]))
+        return texts if texts else None
+
+    def add_equation_to_ontology(self, a, b, c, eq_str, built_steps):
+        """Auto-add and save to Done.rdf"""
+        if not self.onto:
+            return False
+
+        # Avoid duplicates
+        if self.find_equation_in_ontology(a, b, c):
+            return True
+
+        # Create new individuals
+        safe = f"{a}_{b}_{c}".replace("-", "neg")
+
+        eq = self.onto.Equation(f"Equation_{safe}")
+        eq.hasA = [int(a)]
+        eq.hasB = [int(b)]
+        eq.hasC = [int(c)]
+        if hasattr(eq, "equationString"):
+            eq.equationString = [eq_str]
+
+        sol = self.onto.Solution(f"Solution_{safe}")
+        eq.hasSolution = [sol]
+
+        step_objs = []
+        for i, t in enumerate(built_steps, start=1):
+            st = self.onto.Step(f"Step_{safe}_{i}")
+            if hasattr(st, "stepText"):
+                st.stepText = [str(t)]
+            step_objs.append(st)
+
+        if hasattr(sol, "hasStep"):
+            sol.hasStep = step_objs
+
+        try:
+            self.onto.save(file=self.rdf_path, format="rdfxml")
+            return True
+        except Exception as e:
+            self.tutor_say(f"Save failed: {e}")
+            return False
+
+    # ==================== Adaptive difficulty ====================
+    def _difficulty_ranges(self):
+        if self.level == 1:
+            return (-3, 3, -6, 6, -5, 5)
+        if self.level == 2:
+            return (-5, 5, -10, 10, -10, 10)
+        return (-9, 9, -15, 15, -12, 12)
+
+    def adapt_difficulty(self, was_correct: bool):
+        if was_correct:
+            self.streak_correct += 1
+            self.streak_wrong = 0
+            if self.streak_correct >= 3 and self.level < 3:
+                self.level += 1
+                self.streak_correct = 0
+                self.tutor_say(f"Adaptive update: Level increased to {self.level}.")
+        else:
+            self.streak_wrong += 1
+            self.streak_correct = 0
+            if self.streak_wrong >= 2 and self.level > 1:
+                self.level -= 1
+                self.streak_wrong = 0
+                self.tutor_say(f"Adaptive update: Level decreased to {self.level}.")
+        self._update_level_label()
+
+    # ==================== Generate equation ====================
     def generate_equation(self):
-        """
-        Random equation of the form ax + b = c with integer solution x.
-        """
-        x = random.randint(-10, 10)
-        a = random.choice([i for i in range(-5, 6) if i not in (0,)])
-        b = random.randint(-10, 10)
+        a_min, a_max, b_min, b_max, x_min, x_max = self._difficulty_ranges()
+
+        x = random.randint(x_min, x_max)
+        a_choices = [i for i in range(a_min, a_max + 1) if i != 0]
+        a = random.choice(a_choices)
+        b = random.randint(b_min, b_max)
         c = a * x + b
 
-        # Build left side string
+        # String
         if a == 1:
             a_part = "x"
         elif a == -1:
@@ -231,52 +370,80 @@ class AlgebraPracticeITS:
         else:
             left = a_part
 
-        equation_str = f"{left} = {c}"
+        eq_str = f"{left} = {c}"
 
-        steps = []
-        steps.append(f"Step 1: Start with the equation: {equation_str}")
+        steps = [f"Step 1: Start with the equation: {eq_str}"]
 
-        # Move b to the right side
         if b != 0:
             if b > 0:
-                steps.append(f"Step 2: Subtract {b} from both sides to move the constant.")
+                steps.append(f"Step 2: Subtract {b} from both sides.")
                 rhs_after = c - b
-                steps.append(f"        {a_part} = {c} - {b} = {rhs_after}")
-            else:  # b < 0
-                steps.append(f"Step 2: Add {abs(b)} to both sides to move the constant.")
-                rhs_after = c - b  # minus negative is plus
-                steps.append(f"        {a_part} = {c} + {abs(b)} = {rhs_after}")
+                steps.append(f"        {a_part} = {rhs_after}")
+            else:
+                steps.append(f"Step 2: Add {abs(b)} to both sides.")
+                rhs_after = c - b
+                steps.append(f"        {a_part} = {rhs_after}")
         else:
             rhs_after = c
-            steps.append(f"Step 2: There is no constant term, so we already have {a_part} = {rhs_after}.")
+            steps.append(f"Step 2: No constant term, so {a_part} = {rhs_after}.")
 
-        # Divide or multiply to isolate x
         if a not in (1, -1):
-            steps.append(f"Step 3: Divide both sides by {a} to isolate x.")
+            steps.append(f"Step 3: Divide both sides by {a}.")
             steps.append(f"        x = {rhs_after} / {a}")
         elif a == -1:
-            steps.append("Step 3: Multiply both sides by -1 to change -x into x.")
-            steps.append(f"        x = {rhs_after} × (-1)")
+            steps.append("Step 3: Multiply both sides by -1.")
+            steps.append(f"        x = {-rhs_after}")
 
         steps.append(f"Step 4: The solution is x = {x}.")
-        steps.append("Great work! This is how we solve ax + b = c step by step.")
+        steps.append("Great work! That is the method for ax + b = c.")
 
-        return equation_str, x, steps
+        return eq_str, x, steps, a, b, c, rhs_after
 
-    # ------------ Button actions ------------
+    # ==================== Actions ====================
     def new_question(self):
         self.explain_box.config(state="normal")
         self.explain_box.delete("1.0", tk.END)
-        self.explain_box.insert(tk.END, "New question generated. Try to solve it yourself first.\n")
         self.explain_box.config(state="disabled")
 
         self.answer_var.set("")
         self.hint_index = 0
 
-        eq_str, x, steps = self.generate_equation()
-        self.eq_var.set(eq_str)
+        eq_str, x, built_steps, a, b, c, rhs_after = self.generate_equation()
+
+        self.current_eq_str = eq_str
         self.current_x = x
-        self.current_steps = steps
+        self.current_a, self.current_b, self.current_c = a, b, c
+        self.current_rhs_after = rhs_after
+
+        self.eq_var.set(eq_str)
+        self._update_level_label()
+
+        # 1) try match
+        matched = self.find_equation_in_ontology(a, b, c)
+
+        # 2) if not match -> add and save
+        if not matched:
+            added = self.add_equation_to_ontology(a, b, c, eq_str, built_steps)
+            if added:
+                self.tutor_say("New question generated. It was NOT in ontology, so it was ADDED & SAVED ✅")
+                self.load_ontology()
+                matched = self.find_equation_in_ontology(a, b, c)
+            else:
+                self.tutor_say("New question generated. Could not add to ontology; using built-in hints.")
+
+        # 3) use ontology steps if present
+        self.current_onto_equation = matched
+        if matched:
+            onto_steps = self.get_step_texts_from_ontology_equation(matched)
+            if onto_steps:
+                self.current_steps = ["Ontology Hint: " + s for s in onto_steps]
+                self.tutor_say("Ontology match found ✅ Hints come from ontology.")
+            else:
+                self.current_steps = built_steps
+                self.tutor_say("Ontology matched but no stepText found. Using built-in hints.")
+        else:
+            self.current_steps = built_steps
+            self.tutor_say("No ontology match. Using built-in hints.")
 
     def check_answer(self):
         if self.current_x is None:
@@ -295,31 +462,35 @@ class AlgebraPracticeITS:
             return
 
         self.total += 1
+
         if abs(user_x - self.current_x) < 1e-6:
             self.correct += 1
+            was_correct = True
             feedback = f"✅ Correct! x = {self.current_x}."
         else:
-            feedback = f"❌ Not quite. Your answer: {user_x}, correct answer: {self.current_x}."
+            was_correct = False
+            feedback = f"❌ Not correct. Your: {user_x} | Correct: {self.current_x}."
+
+            if abs(user_x + self.current_x) < 1e-6:
+                feedback += " Diagnosis: sign mistake."
+
+            if self.current_a not in (1, -1) and abs(user_x - self.current_rhs_after) < 1e-6:
+                feedback += f" Diagnosis: forgot to divide by {self.current_a}."
 
         self.score_var.set(f"Score: {self.correct} / {self.total}")
+        self.tutor_say(feedback)
 
-        self.explain_box.config(state="normal")
-        self.explain_box.insert(tk.END, "\n" + feedback + "\n")
-        self.explain_box.config(state="disabled")
+        self.adapt_difficulty(was_correct)
 
     def show_hint(self):
         if not self.current_steps:
             messagebox.showinfo("Info", "No question loaded yet.")
             return
-
         if self.hint_index >= len(self.current_steps):
-            messagebox.showinfo("Info", "No more hints. You can view the full solution.")
+            messagebox.showinfo("Info", "No more hints. Use full solution.")
             return
 
-        self.explain_box.config(state="normal")
-        self.explain_box.insert(tk.END, "\n" + self.current_steps[self.hint_index] + "\n")
-        self.explain_box.config(state="disabled")
-
+        self.tutor_say(self.current_steps[self.hint_index])
         self.hint_index += 1
 
     def show_full_solution(self):
@@ -327,21 +498,15 @@ class AlgebraPracticeITS:
             messagebox.showinfo("Info", "No question loaded yet.")
             return
 
-        self.explain_box.config(state="normal")
-        self.explain_box.insert(tk.END, "\nFull solution:\n")
-        for step in self.current_steps:
-            self.explain_box.insert(tk.END, step + "\n")
-        self.explain_box.config(state="disabled")
+        self.tutor_say("Full solution:")
+        for s in self.current_steps:
+            self.tutor_say(s)
 
     def show_credit(self):
-        messagebox.showinfo(
-            "About",
-            "This Intelligent Tutoring System was designed and implemented by Roshish."
-        )
+        messagebox.showinfo("About", "This Intelligent Tutoring System was designed and implemented by Roshish.")
 
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = AlgebraPracticeITS(root)
     root.mainloop()
-
